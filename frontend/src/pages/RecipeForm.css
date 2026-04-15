@@ -1,0 +1,100 @@
+.recipe-form-container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.recipe-form {
+  margin-top: 24px;
+}
+
+/* Image Upload */
+.image-upload-area {
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-base);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-upload-area:hover {
+  border-color: var(--primary-500);
+  background: rgba(255, 133, 16, 0.03);
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 40px;
+}
+
+.upload-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.image-preview {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+/* Form Row */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+/* List Inputs */
+.list-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.list-input-row .form-input,
+.list-input-row .form-textarea {
+  flex: 1;
+}
+
+.step-label {
+  flex-shrink: 0;
+  width: 60px;
+  padding-top: 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-400);
+}
+
+.step-textarea {
+  min-height: 70px;
+}
+
+.remove-btn {
+  color: #ef4444;
+  margin-top: 8px;
+}
+
+.add-item-btn {
+  color: var(--primary-400);
+  margin-top: 4px;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 16px;
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
