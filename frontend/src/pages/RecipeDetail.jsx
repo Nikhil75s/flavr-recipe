@@ -1,3 +1,18 @@
+/**
+ * pages/RecipeDetail.jsx — Full recipe detail page with reviews.
+ *
+ * Displays a single recipe with:
+ *  - Hero image with category and difficulty badges
+ *  - Title, description, cook time, servings, rating, cuisine, and author
+ *  - Ingredients list and step-by-step instructions
+ *  - Save/bookmark toggle button
+ *  - Edit/Delete buttons (visible only to the recipe author)
+ *  - Reviews section with rating input and comment form
+ *  - List of existing reviews with delete option for own reviews
+ *
+ * Fetches recipe and reviews in parallel on mount.
+ */
+
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { FiClock, FiUsers, FiEdit3, FiTrash2, FiBookmark, FiArrowLeft, FiStar } from 'react-icons/fi'
@@ -8,21 +23,24 @@ import StarInput from '../components/StarInput'
 import './RecipeDetail.css'
 
 const RecipeDetail = () => {
-  const { id } = useParams()
+  const { id } = useParams()                    // Recipe ID from the URL
   const navigate = useNavigate()
-  const { user, refreshUser } = useAuth()
+  const { user, refreshUser } = useAuth()       // Current user and refresh function
 
-  const [recipe, setRecipe] = useState(null)
-  const [reviews, setReviews] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [reviewText, setReviewText] = useState('')
-  const [reviewRating, setReviewRating] = useState(5)
-  const [submitting, setSubmitting] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
+  // Component state
+  const [recipe, setRecipe] = useState(null)     // Recipe data from API
+  const [reviews, setReviews] = useState([])     // Reviews list for this recipe
+  const [loading, setLoading] = useState(true)   // Initial data loading state
+  const [reviewText, setReviewText] = useState('')    // Review comment input
+  const [reviewRating, setReviewRating] = useState(5) // Review star rating (default: 5)
+  const [submitting, setSubmitting] = useState(false) // Review submission loading state
+  const [isSaved, setIsSaved] = useState(false)       // Whether the recipe is bookmarked
 
+  // Fetch recipe and reviews data in parallel when the page loads
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch recipe details and reviews simultaneously for faster loading
         const [recipeRes, reviewsRes] = await Promise.all([
           API.get(`/recipes/${id}`),
           API.get(`/reviews/${id}`),
@@ -30,13 +48,13 @@ const RecipeDetail = () => {
         setRecipe(recipeRes.data)
         setReviews(reviewsRes.data)
 
-        // Check if recipe is saved
+        // Check if the logged-in user has saved/bookmarked this recipe
         if (user) {
           setIsSaved(user.savedRecipes?.includes(id))
         }
       } catch (error) {
         toast.error('Recipe not found')
-        navigate('/recipes')
+        navigate('/recipes') // Redirect to recipes list on error
       } finally {
         setLoading(false)
       }
@@ -44,6 +62,10 @@ const RecipeDetail = () => {
     fetchData()
   }, [id, user])
 
+  /**
+   * Delete the recipe — shows a confirmation dialog first.
+   * Only the recipe author can trigger this action.
+   */
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this recipe?')) return
     try {
@@ -55,6 +77,10 @@ const RecipeDetail = () => {
     }
   }
 
+  /**
+   * Toggle save/unsave (bookmark) for this recipe.
+   * Requires authentication — redirects to login if not logged in.
+   */
   const handleSave = async () => {
     if (!user) {
       toast.error('Please sign in to save recipes')
@@ -62,14 +88,18 @@ const RecipeDetail = () => {
     }
     try {
       const { data } = await API.post(`/users/save/${id}`)
-      setIsSaved(data.saved)
+      setIsSaved(data.saved) // Update bookmark icon state
       toast.success(data.saved ? 'Recipe saved!' : 'Recipe unsaved')
-      refreshUser()
+      refreshUser() // Refresh user data to update savedRecipes array
     } catch (error) {
       toast.error('Failed to save recipe')
     }
   }
 
+  /**
+   * Submit a new review — validates input, posts to API, and updates local state.
+   * After submission, re-fetches the recipe to get the updated average rating.
+   */
   const handleReviewSubmit = async (e) => {
     e.preventDefault()
     if (!user) {
@@ -82,16 +112,18 @@ const RecipeDetail = () => {
 
     setSubmitting(true)
     try {
+      // Post the new review
       const { data } = await API.post(`/reviews/${id}`, {
         rating: reviewRating,
         comment: reviewText,
       })
+      // Add the new review to the top of the list (optimistic update)
       setReviews([data, ...reviews])
-      setReviewText('')
-      setReviewRating(5)
+      setReviewText('')    // Clear the form
+      setReviewRating(5)   // Reset rating to default
       toast.success('Review added!')
 
-      // Refresh recipe to get updated rating
+      // Re-fetch recipe to get the updated averageRating and totalReviews
       const recipeRes = await API.get(`/recipes/${id}`)
       setRecipe(recipeRes.data)
     } catch (error) {
@@ -101,12 +133,18 @@ const RecipeDetail = () => {
     }
   }
 
+  /**
+   * Delete a review — removes from the server and updates local state.
+   * Re-fetches the recipe to update the average rating.
+   */
   const handleDeleteReview = async (reviewId) => {
     try {
       await API.delete(`/reviews/${reviewId}`)
+      // Remove the deleted review from local state (optimistic update)
       setReviews(reviews.filter((r) => r._id !== reviewId))
       toast.success('Review deleted')
 
+      // Re-fetch recipe to update rating stats
       const recipeRes = await API.get(`/recipes/${id}`)
       setRecipe(recipeRes.data)
     } catch (error) {
@@ -114,6 +152,7 @@ const RecipeDetail = () => {
     }
   }
 
+  // Show loading spinner while data is being fetched
   if (loading) {
     return (
       <div className="loading-page page-wrapper">
@@ -122,21 +161,24 @@ const RecipeDetail = () => {
     )
   }
 
+  // Safety check — if recipe somehow isn't loaded, render nothing
   if (!recipe) return null
 
-  const isAuthor = user && recipe.author?._id === user._id
-  const hasReviewed = user && reviews.some((r) => r.user?._id === user._id)
+  // Computed flags for conditional rendering
+  const isAuthor = user && recipe.author?._id === user._id   // Is the current user the author?
+  const hasReviewed = user && reviews.some((r) => r.user?._id === user._id) // Did the user already review?
   const placeholderImg = `https://placehold.co/800x400/1a1a28/ff8510?text=${encodeURIComponent(recipe.title?.slice(0, 20) || 'Recipe')}`
 
   return (
     <div className="recipe-detail-page page-wrapper">
       <div className="container">
+        {/* Back button — navigates to the previous page in browser history */}
         <button className="btn btn-ghost back-btn" onClick={() => navigate(-1)}>
           <FiArrowLeft size={18} /> Back
         </button>
 
         <div className="recipe-detail fade-in-up">
-          {/* Image */}
+          {/* ─── Recipe Image ────────────────────────────────────── */}
           <div className="detail-image-wrapper">
             <img
               src={recipe.image || placeholderImg}
@@ -144,6 +186,7 @@ const RecipeDetail = () => {
               className="detail-image"
               onError={(e) => { e.target.src = placeholderImg }}
             />
+            {/* Badges overlaid on the image */}
             <div className="detail-image-overlay">
               <span className="badge badge-primary">{recipe.category}</span>
               <span className={`badge difficulty-badge difficulty-${recipe.difficulty?.toLowerCase()}`}>
@@ -152,11 +195,13 @@ const RecipeDetail = () => {
             </div>
           </div>
 
-          {/* Header */}
+          {/* ─── Recipe Header ───────────────────────────────────── */}
           <div className="detail-header">
             <div className="detail-title-row">
               <h1 className="detail-title">{recipe.title}</h1>
+              {/* Action buttons — save, edit, delete */}
               <div className="detail-actions">
+                {/* Bookmark/save toggle button */}
                 <button
                   className={`btn btn-ghost save-btn ${isSaved ? 'saved' : ''}`}
                   id="save-recipe-btn"
@@ -164,6 +209,7 @@ const RecipeDetail = () => {
                 >
                   <FiBookmark size={20} fill={isSaved ? 'currentColor' : 'none'} />
                 </button>
+                {/* Edit and Delete buttons — only visible to the recipe author */}
                 {isAuthor && (
                   <>
                     <Link to={`/edit/${recipe._id}`} className="btn btn-secondary btn-sm">
@@ -179,6 +225,7 @@ const RecipeDetail = () => {
 
             <p className="detail-description">{recipe.description}</p>
 
+            {/* Meta information — cook time, servings, rating, cuisine */}
             <div className="detail-meta">
               <div className="detail-meta-item">
                 <FiClock size={18} />
@@ -197,7 +244,7 @@ const RecipeDetail = () => {
               )}
             </div>
 
-            {/* Author */}
+            {/* Author info — links to the author's profile page */}
             {recipe.author && (
               <Link to={`/profile/${recipe.author._id}`} className="detail-author">
                 <img
@@ -213,9 +260,9 @@ const RecipeDetail = () => {
             )}
           </div>
 
-          {/* Content Grid */}
+          {/* ─── Content Grid: Ingredients + Steps ───────────────── */}
           <div className="detail-content-grid">
-            {/* Ingredients */}
+            {/* Ingredients list */}
             <div className="detail-section glass-card">
               <h2 className="detail-section-title">🥕 Ingredients</h2>
               <ul className="ingredients-list">
@@ -228,7 +275,7 @@ const RecipeDetail = () => {
               </ul>
             </div>
 
-            {/* Steps */}
+            {/* Step-by-step instructions */}
             <div className="detail-section glass-card">
               <h2 className="detail-section-title">👨‍🍳 Instructions</h2>
               <ol className="steps-list">
@@ -242,11 +289,11 @@ const RecipeDetail = () => {
             </div>
           </div>
 
-          {/* Reviews Section */}
+          {/* ─── Reviews Section ─────────────────────────────────── */}
           <div className="reviews-section">
             <h2 className="detail-section-title">💬 Reviews ({reviews.length})</h2>
 
-            {/* Add Review Form */}
+            {/* Add Review Form — shown only to logged-in users who haven't reviewed and aren't the author */}
             {user && !hasReviewed && !isAuthor && (
               <form className="review-form glass-card" onSubmit={handleReviewSubmit} id="review-form">
                 <div className="review-form-header">
@@ -277,6 +324,7 @@ const RecipeDetail = () => {
               <div className="reviews-list">
                 {reviews.map((review) => (
                   <div key={review._id} className="review-card glass-card">
+                    {/* Review header — user info and star rating */}
                     <div className="review-header">
                       <div className="review-user">
                         <img
@@ -295,7 +343,9 @@ const RecipeDetail = () => {
                         <StarInput rating={review.rating} setRating={() => {}} size={14} readonly />
                       </div>
                     </div>
+                    {/* Review comment text */}
                     <p className="review-comment">{review.comment}</p>
+                    {/* Delete button — only visible for the review's author */}
                     {user && review.user?._id === user._id && (
                       <button
                         className="btn btn-ghost btn-sm review-delete"

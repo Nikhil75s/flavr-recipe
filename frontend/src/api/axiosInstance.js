@@ -1,34 +1,38 @@
-import axios from 'axios';
+/**
+ * api/axiosInstance.js — Pre-configured Axios instance for API communication.
+ */
 
+import axios from 'axios'
+
+// Create an Axios instance with the base URL pointing to the backend API
 const API = axios.create({
-  baseURL: '/api',
-});
+  baseURL: '/api', // In dev, Vite proxies /api → http://localhost:5000/api
+})
 
-// Request interceptor — attach JWT token
-API.interceptors.request.use(
+interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('flavr_token');
+    const token = localStorage.getItem('flavr_token')
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}` // Attach JWT token
     }
-    return config;
+    return config
   },
   (error) => Promise.reject(error)
-);
+)
 
-// Response interceptor — handle 401 token expiry
+
 API.interceptors.response.use(
-  (response) => response,
+  (response) => response, // Pass through successful responses unchanged
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('flavr_token');
-      // Only redirect if not already on login page
+      localStorage.removeItem('flavr_token') // Clear the expired/invalid token
+      // Redirect to login page only if not already on it (prevents redirect loop)
       if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+        window.location.href = '/login'
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(error)
   }
-);
+)
 
-export default API;
+export default API

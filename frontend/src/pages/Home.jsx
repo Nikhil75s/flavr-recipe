@@ -1,3 +1,15 @@
+/**
+ * pages/Home.jsx — Landing page / home page.
+ *
+ * Sections:
+ *  1. Hero     — Full-width hero with animated gradient orbs, headline, and CTA buttons
+ *  2. Stats    — Quick statistics cards (recipes count, home cooks, avg rating)
+ *  3. Featured — Grid of top-rated recipes fetched from the API
+ *  4. CTA      — Final call-to-action encouraging users to create a recipe
+ *
+ * Fetches the top 6 highest-rated recipes on mount to display in the featured section.
+ */
+
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FiArrowRight, FiSearch, FiBookOpen, FiUsers, FiStar } from 'react-icons/fi'
@@ -6,12 +18,14 @@ import RecipeCard from '../components/RecipeCard'
 import './Home.css'
 
 const Home = () => {
-  const [featuredRecipes, setFeaturedRecipes] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [featuredRecipes, setFeaturedRecipes] = useState([]) // Top-rated recipes for the grid
+  const [loading, setLoading] = useState(true)               // Loading state for the fetch
 
+  // Fetch top-rated recipes on component mount
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
+        // Request top 6 recipes sorted by average rating (highest first)
         const { data } = await API.get('/recipes?sort=rating&limit=6')
         setFeaturedRecipes(data.recipes || [])
       } catch (err) {
@@ -25,8 +39,9 @@ const Home = () => {
 
   return (
     <div className="home-page">
-      {/* Hero Section */}
+      {/* ─── Hero Section ──────────────────────────────────────────── */}
       <section className="hero" id="hero-section">
+        {/* Animated gradient orbs — decorative background elements */}
         <div className="hero-bg">
           <div className="hero-orb hero-orb-1"></div>
           <div className="hero-orb hero-orb-2"></div>
@@ -44,6 +59,7 @@ const Home = () => {
             Discover mouth-watering recipes from home cooks and food enthusiasts.
             Create, share, and bookmark your favorites.
           </p>
+          {/* Primary CTA buttons */}
           <div className="hero-actions">
             <Link to="/recipes" className="btn btn-primary btn-lg" id="hero-explore-btn">
               <FiSearch size={18} />
@@ -57,7 +73,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* ─── Stats Section ─────────────────────────────────────────── */}
+      {/* Quick platform statistics displayed as glassmorphism cards */}
       <section className="stats-section">
         <div className="container">
           <div className="stats-grid">
@@ -80,7 +97,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Recipes */}
+      {/* ─── Featured Recipes Section ──────────────────────────────── */}
+      {/* Displays top-rated recipes in a responsive grid */}
       <section className="featured-section" id="featured-section">
         <div className="container">
           <div className="section-header">
@@ -93,16 +111,19 @@ const Home = () => {
           </div>
 
           {loading ? (
+            // Show spinner while recipes are loading
             <div className="loading-page">
               <div className="spinner"></div>
             </div>
           ) : featuredRecipes.length > 0 ? (
+            // Render recipe cards in a grid layout
             <div className="recipe-grid">
               {featuredRecipes.map((recipe) => (
                 <RecipeCard key={recipe._id} recipe={recipe} />
               ))}
             </div>
           ) : (
+            // Empty state — no recipes exist yet
             <div className="empty-state">
               <div className="empty-state-icon">🍽️</div>
               <h3 className="empty-state-title">No recipes yet</h3>
@@ -113,7 +134,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ─── CTA Section ───────────────────────────────────────────── */}
+      {/* Final call-to-action encouraging recipe creation */}
       <section className="cta-section">
         <div className="container">
           <div className="cta-card glass-card">

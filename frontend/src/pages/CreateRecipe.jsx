@@ -1,3 +1,18 @@
+/**
+ * pages/CreateRecipe.jsx — Recipe creation form page.
+ *
+ * Provides a form with fields for:
+ *  - Image upload (preview shown immediately via URL.createObjectURL)
+ *  - Title, description, cook time, servings, cuisine
+ *  - Category and difficulty dropdowns
+ *  - Dynamic ingredients list (add/remove items)
+ *  - Dynamic steps list (add/remove items)
+ *
+ * Form data is sent as multipart/form-data (because of image upload).
+ * Ingredients and steps arrays are JSON-stringified before sending.
+ * On success, navigates to the new recipe's detail page.
+ */
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiPlus, FiX, FiUploadCloud } from 'react-icons/fi'
@@ -5,58 +20,85 @@ import toast from 'react-hot-toast'
 import API from '../api/axiosInstance'
 import './RecipeForm.css'
 
+// Dropdown options for category and difficulty
 const categories = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Beverage', 'Other']
 const difficulties = ['Easy', 'Medium', 'Hard']
 
 const CreateRecipe = () => {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [loading, setLoading] = useState(false)          // Form submission loading state
+  const [imagePreview, setImagePreview] = useState(null)  // URL for image preview
 
+  // Form state — all recipe fields with default values
   const [form, setForm] = useState({
     title: '',
     description: '',
-    ingredients: [''],
-    steps: [''],
+    ingredients: [''],   // Start with one empty ingredient field
+    steps: [''],          // Start with one empty step field
     cookTime: '',
     servings: '',
     category: 'Other',
     cuisine: '',
     difficulty: 'Medium',
-    image: null,
+    image: null,          // File object for the uploaded image
   })
 
+  /**
+   * Generic handler for text/number/select inputs.
+   * Uses the input's `name` attribute to determine which field to update.
+   */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  /**
+   * Handle image file selection.
+   * Creates a temporary URL for preview using URL.createObjectURL().
+   */
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (file) {
       setForm({ ...form, image: file })
-      setImagePreview(URL.createObjectURL(file))
+      setImagePreview(URL.createObjectURL(file)) // Show preview immediately
     }
   }
 
+  /**
+   * Handle changes to a specific item in a dynamic list (ingredients or steps).
+   * @param {string} field - 'ingredients' or 'steps'
+   * @param {number} index - Index of the item to update
+   * @param {string} value - New value for the item
+   */
   const handleListChange = (field, index, value) => {
     const updated = [...form[field]]
     updated[index] = value
     setForm({ ...form, [field]: updated })
   }
 
+  /**
+   * Add a new empty item to a dynamic list (ingredients or steps).
+   */
   const addListItem = (field) => {
     setForm({ ...form, [field]: [...form[field], ''] })
   }
 
+  /**
+   * Remove an item from a dynamic list by index.
+   * Prevents removing the last item (minimum 1 ingredient/step required).
+   */
   const removeListItem = (field, index) => {
-    if (form[field].length <= 1) return
+    if (form[field].length <= 1) return // Keep at least one item
     const updated = form[field].filter((_, i) => i !== index)
     setForm({ ...form, [field]: updated })
   }
 
+  /**
+   * Handle form submission — validates, builds FormData, and posts to the API.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // Validate required fields
     if (!form.title.trim()) return toast.error('Title is required')
     if (!form.description.trim()) return toast.error('Description is required')
     if (form.ingredients.some((i) => !i.trim())) return toast.error('Fill all ingredient fields')
@@ -64,9 +106,11 @@ const CreateRecipe = () => {
 
     setLoading(true)
     try {
+      // Build FormData for multipart/form-data submission (required for file upload)
       const formData = new FormData()
       formData.append('title', form.title)
       formData.append('description', form.description)
+      // Arrays must be JSON-stringified when sent via FormData
       formData.append('ingredients', JSON.stringify(form.ingredients.filter((i) => i.trim())))
       formData.append('steps', JSON.stringify(form.steps.filter((s) => s.trim())))
       formData.append('cookTime', form.cookTime || 0)
@@ -74,14 +118,15 @@ const CreateRecipe = () => {
       formData.append('category', form.category)
       formData.append('cuisine', form.cuisine || 'Other')
       formData.append('difficulty', form.difficulty)
-      if (form.image) formData.append('image', form.image)
+      if (form.image) formData.append('image', form.image) // Attach image file if selected
 
+      // POST to the API — the backend handles Cloudinary upload via multer
       const { data } = await API.post('/recipes', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
       toast.success('Recipe created! 🎉')
-      navigate(`/recipes/${data._id}`)
+      navigate(`/recipes/${data._id}`) // Navigate to the new recipe's detail page
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create recipe')
     } finally {
@@ -97,7 +142,7 @@ const CreateRecipe = () => {
           <p className="page-subtitle">Share your culinary creation with the world</p>
 
           <form onSubmit={handleSubmit} className="recipe-form" id="create-recipe-form">
-            {/* Image Upload */}
+            {/* ─── Image Upload ─────────────────────────────────── */}
             <div className="form-group">
               <label className="form-label">Recipe Photo</label>
               <div className="image-upload-area" onClick={() => document.getElementById('image-input').click()}>
@@ -120,7 +165,7 @@ const CreateRecipe = () => {
               </div>
             </div>
 
-            {/* Title & Description */}
+            {/* ─── Title & Description ─────────────────────────── */}
             <div className="form-group">
               <label className="form-label" htmlFor="title">Title</label>
               <input
@@ -150,7 +195,7 @@ const CreateRecipe = () => {
               />
             </div>
 
-            {/* Meta info row */}
+            {/* ─── Cook Time, Servings, Cuisine ────────────────── */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label" htmlFor="cookTime">Cook Time (min)</label>
@@ -192,6 +237,7 @@ const CreateRecipe = () => {
               </div>
             </div>
 
+            {/* ─── Category & Difficulty Dropdowns ─────────────── */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label" htmlFor="category">Category</label>
@@ -223,7 +269,7 @@ const CreateRecipe = () => {
               </div>
             </div>
 
-            {/* Ingredients */}
+            {/* ─── Dynamic Ingredients List ────────────────────── */}
             <div className="form-group">
               <label className="form-label">Ingredients</label>
               {form.ingredients.map((ing, i) => (
@@ -235,6 +281,7 @@ const CreateRecipe = () => {
                     value={ing}
                     onChange={(e) => handleListChange('ingredients', i, e.target.value)}
                   />
+                  {/* Remove button — hidden when only 1 item remains */}
                   {form.ingredients.length > 1 && (
                     <button
                       type="button"
@@ -246,6 +293,7 @@ const CreateRecipe = () => {
                   )}
                 </div>
               ))}
+              {/* Add new ingredient button */}
               <button
                 type="button"
                 className="btn btn-ghost add-item-btn"
@@ -255,7 +303,7 @@ const CreateRecipe = () => {
               </button>
             </div>
 
-            {/* Steps */}
+            {/* ─── Dynamic Steps List ─────────────────────────── */}
             <div className="form-group">
               <label className="form-label">Instructions</label>
               {form.steps.map((step, i) => (
@@ -267,6 +315,7 @@ const CreateRecipe = () => {
                     value={step}
                     onChange={(e) => handleListChange('steps', i, e.target.value)}
                   />
+                  {/* Remove button — hidden when only 1 step remains */}
                   {form.steps.length > 1 && (
                     <button
                       type="button"
@@ -278,6 +327,7 @@ const CreateRecipe = () => {
                   )}
                 </div>
               ))}
+              {/* Add new step button */}
               <button
                 type="button"
                 className="btn btn-ghost add-item-btn"
@@ -287,6 +337,7 @@ const CreateRecipe = () => {
               </button>
             </div>
 
+            {/* ─── Submit Button ──────────────────────────────── */}
             <button type="submit" className="btn btn-primary btn-lg submit-btn" disabled={loading} id="submit-recipe-btn">
               {loading ? 'Creating...' : 'Create Recipe'}
             </button>

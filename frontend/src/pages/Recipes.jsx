@@ -1,3 +1,17 @@
+/**
+ * pages/Recipes.jsx — Recipe exploration page with search, filters, and pagination.
+ *
+ * Features:
+ *  - Full-text search bar (searches title, description, cuisine)
+ *  - Filter chips for category and difficulty
+ *  - Sort dropdown (newest, oldest, top rated, most reviewed)
+ *  - Paginated recipe grid with Previous/Next navigation
+ *  - URL-synced filters (all filters are stored as URL search params for shareable links)
+ *
+ * All filter/search values are read from and written to the URL via useSearchParams,
+ * making the current view bookmarkable and shareable.
+ */
+
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FiSearch, FiFilter, FiX } from 'react-icons/fi'
@@ -5,6 +19,7 @@ import API from '../api/axiosInstance'
 import RecipeCard from '../components/RecipeCard'
 import './Recipes.css'
 
+// Available filter options
 const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Beverage', 'Other']
 const difficulties = ['All', 'Easy', 'Medium', 'Hard']
 const sortOptions = [
@@ -15,29 +30,32 @@ const sortOptions = [
 ]
 
 const Recipes = () => {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [recipes, setRecipes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [totalPages, setTotalPages] = useState(1)
-  const [showFilters, setShowFilters] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams() // URL search params for filters
+  const [recipes, setRecipes] = useState([])                 // Fetched recipe results
+  const [loading, setLoading] = useState(true)               // Loading state
+  const [totalPages, setTotalPages] = useState(1)            // Total pages for pagination
+  const [showFilters, setShowFilters] = useState(false)      // Toggle filters panel visibility
 
+  // Read current filter values from URL search params (with defaults)
   const search = searchParams.get('search') || ''
   const category = searchParams.get('category') || 'All'
   const difficulty = searchParams.get('difficulty') || 'All'
   const sort = searchParams.get('sort') || 'newest'
   const page = parseInt(searchParams.get('page')) || 1
 
+  // Fetch recipes whenever any filter/search/sort/page value changes
   useEffect(() => {
     const fetchRecipes = async () => {
       setLoading(true)
       try {
+        // Build query string from current filter values
         const params = new URLSearchParams()
         if (search) params.set('search', search)
         if (category !== 'All') params.set('category', category)
         if (difficulty !== 'All') params.set('difficulty', difficulty)
         params.set('sort', sort)
         params.set('page', page)
-        params.set('limit', 12)
+        params.set('limit', 12) // 12 recipes per page
 
         const { data } = await API.get(`/recipes?${params.toString()}`)
         setRecipes(data.recipes || [])
@@ -51,32 +69,42 @@ const Recipes = () => {
     fetchRecipes()
   }, [search, category, difficulty, sort, page])
 
+  /**
+   * Update a single filter value in the URL search params.
+   * Resets to page 1 whenever a filter changes (to avoid showing an empty page).
+   * 'All' or empty values are removed from the URL to keep it clean.
+   */
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams)
     if (value === 'All' || value === '') {
-      params.delete(key)
+      params.delete(key)  // Remove filter from URL if it's the default value
     } else {
       params.set(key, value)
     }
-    params.set('page', '1')
+    params.set('page', '1') // Reset to first page when filters change
     setSearchParams(params)
   }
 
+  /**
+   * Clear all active filters — resets the URL to a clean state.
+   */
   const clearFilters = () => {
     setSearchParams({})
   }
 
+  // Check if any non-default filters are active (for showing "Clear All" button)
   const hasActiveFilters = search || category !== 'All' || difficulty !== 'All' || sort !== 'newest'
 
   return (
     <div className="recipes-page page-wrapper">
       <div className="container">
+        {/* Page header */}
         <div className="recipes-header fade-in-up">
           <h1 className="page-title">Explore Recipes</h1>
           <p className="page-subtitle">Discover delicious recipes from our community of food lovers</p>
         </div>
 
-        {/* Search Bar */}
+        {/* ─── Search Bar ──────────────────────────────────────────── */}
         <div className="search-bar glass-card fade-in-up">
           <FiSearch size={20} className="search-icon" />
           <input
@@ -87,6 +115,7 @@ const Recipes = () => {
             value={search}
             onChange={(e) => updateFilter('search', e.target.value)}
           />
+          {/* Toggle button to show/hide the filters panel */}
           <button
             className="btn btn-ghost filter-toggle"
             id="filter-toggle-btn"
@@ -97,9 +126,11 @@ const Recipes = () => {
           </button>
         </div>
 
-        {/* Filters Panel */}
+        {/* ─── Filters Panel ───────────────────────────────────────── */}
+        {/* Conditionally rendered based on showFilters state */}
         {showFilters && (
           <div className="filters-panel glass-card fade-in-up">
+            {/* Category filter chips */}
             <div className="filter-group">
               <label className="filter-label">Category</label>
               <div className="filter-chips">
@@ -115,6 +146,7 @@ const Recipes = () => {
               </div>
             </div>
 
+            {/* Difficulty filter chips */}
             <div className="filter-group">
               <label className="filter-label">Difficulty</label>
               <div className="filter-chips">
@@ -130,6 +162,7 @@ const Recipes = () => {
               </div>
             </div>
 
+            {/* Sort dropdown */}
             <div className="filter-group">
               <label className="filter-label">Sort By</label>
               <select
@@ -144,6 +177,7 @@ const Recipes = () => {
               </select>
             </div>
 
+            {/* Clear all filters button — only shown when filters are active */}
             {hasActiveFilters && (
               <button className="btn btn-ghost clear-filters" onClick={clearFilters}>
                 <FiX size={16} /> Clear All Filters
@@ -152,20 +186,22 @@ const Recipes = () => {
           </div>
         )}
 
-        {/* Results */}
+        {/* ─── Results ─────────────────────────────────────────────── */}
         {loading ? (
+          // Loading spinner
           <div className="loading-page">
             <div className="spinner"></div>
           </div>
         ) : recipes.length > 0 ? (
           <>
+            {/* Recipe cards grid */}
             <div className="recipe-grid">
               {recipes.map((recipe) => (
                 <RecipeCard key={recipe._id} recipe={recipe} />
               ))}
             </div>
 
-            {/* Pagination */}
+            {/* ─── Pagination Controls ─────────────────────────────── */}
             {totalPages > 1 && (
               <div className="pagination">
                 <button
@@ -189,6 +225,7 @@ const Recipes = () => {
             )}
           </>
         ) : (
+          // Empty state — no recipes match the current filters
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
             <h3 className="empty-state-title">No recipes found</h3>
